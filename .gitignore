@@ -1,0 +1,65 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Databricks ---
+.databricks/
+.databricks-temp/
+databricks-state.json
+*.databricks-state
+.bundle/
+
+# --- Notebook outputs (keep notebooks, but strip outputs in CI) ---
+.ipynb_checkpoints/
+
+# --- Secrets — defense in depth on top of gitleaks ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+*.crt
+*.cer
+id_rsa
+id_ed25519
+id_ecdsa
+secrets/
+.secrets/
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- Logs / temp ---
+*.log
+*.tmp
+tmp/
