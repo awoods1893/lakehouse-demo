@@ -105,7 +105,14 @@ log.info(
 # COMMAND ----------
 # DBTITLE 1,Fetch with retry / backoff
 def fetch_page(start, end, start_index):
-    """One paginated NVD API call. Retries on 429/503 with exponential backoff."""
+    """
+    One paginated NVD API call. Retries with exponential backoff on:
+      - connection-level errors (ChunkedEncodingError, ConnectionError, Timeout, ...)
+      - HTTP 429 / 503 (rate-limit / unavailable)
+      - JSON decode errors (truncated body)
+
+    Other 4xx/5xx responses fail fast (auth/path issues are not retryable).
+    """
     params = {
         "lastModStartDate": iso_z(start),
         "lastModEndDate": iso_z(end),
@@ -115,17 +122,42 @@ def fetch_page(start, end, start_index):
     headers = {"apiKey": API_KEY} if API_KEY else {}
 
     backoff = 5
+    last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
-        r = requests.get(NVD_BASE_URL, params=params, headers=headers, timeout=60)
+        try:
+            r = requests.get(NVD_BASE_URL, params=params, headers=headers, timeout=60)
+        except requests.exceptions.RequestException as e:
+            last_err = e
+            log.warning(
+                f"NVD connection error (attempt {attempt}/{MAX_RETRIES}): "
+                f"{type(e).__name__}: {e}; sleeping {backoff}s"
+            )
+            time.sleep(backoff)
+            backoff *= 2
+            continue
+
         if r.status_code == 200:
-            return r.json()
+            try:
+                return r.json()
+            except (json.JSONDecodeError, requests.exceptions.JSONDecodeError) as e:
+                last_err = e
+                log.warning(
+                    f"NVD response parse error (attempt {attempt}/{MAX_RETRIES}): "
+                    f"{e}; sleeping {backoff}s"
+                )
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+
         if r.status_code in (429, 503):
             log.warning(f"NVD {r.status_code} (attempt {attempt}/{MAX_RETRIES}); sleeping {backoff}s")
             time.sleep(backoff)
             backoff *= 2
             continue
+
+        # Other 4xx/5xx: fail fast
         r.raise_for_status()
-    raise RuntimeError(f"NVD fetch failed after {MAX_RETRIES} attempts")
+    raise RuntimeError(f"NVD fetch failed after {MAX_RETRIES} attempts: {last_err}")
 
 # COMMAND ----------
 # DBTITLE 1,Atomic write to landing volume (tmp + rename)
