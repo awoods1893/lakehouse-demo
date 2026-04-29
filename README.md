@@ -2,7 +2,10 @@
 
 An open security lakehouse built on Databricks Free Edition. Ingests public threat intel and security telemetry through a medallion architecture, runs detection-as-code, and uses an LLM-backed triage layer to enrich alerts. The shape of the system mirrors patterns underlying Databricks Lakewatch.
 
-**Status:** Work in progress. See [docs/design.md](docs/design.md) for the full design.
+**Status:** Work in progress.
+
+- [docs/architecture.md](docs/architecture.md) — components, data flow, scope
+- [docs/design.md](docs/design.md) — design decisions and open questions
 
 ## Layout
 
