@@ -6,8 +6,14 @@
 # MAGIC
 # MAGIC | Layer | Table | Shape |
 # MAGIC |---|---|---|
-# MAGIC | Bronze | `lakehouse_demo.bronze.nvd_cves_raw` | one row per API page (raw NVD payload + ingest metadata) |
-# MAGIC | Silver | `lakehouse_demo.silver.cves` | one row per CVE, latest by `modified_at` (SCD Type 1 via `apply_changes`) |
+# MAGIC | Bronze | `nvd_cves_raw` (in pipeline target schema) | one row per API page (raw NVD payload + ingest metadata) |
+# MAGIC | Silver | `cves` (in pipeline target schema) | one row per CVE, latest by `modified_at` (SCD Type 1 via `apply_changes`) |
+# MAGIC
+# MAGIC **Schema layout note (v1 trade-off):** both tables publish to a single schema —
+# MAGIC the pipeline's target schema. The medallion *layer* is signaled by the table name
+# MAGIC (`nvd_cves_raw` for bronze, `cves` for silver) and `table_properties.quality`.
+# MAGIC Splitting into two pipelines (one targeting `bronze`, one targeting `silver`) is
+# MAGIC the cleaner long-term shape; deferred to v2 to keep this iteration shippable.
 # MAGIC
 # MAGIC Auto Loader handles file discovery; `_tmp/` is excluded by `pathGlobFilter`.
 # MAGIC
@@ -29,7 +35,7 @@ LANDING_PATH = "/Volumes/lakehouse_demo/bronze/nvd_landing/"
 # COMMAND ----------
 # DBTITLE 1,Bronze — raw NVD pages from the landing volume
 @dlt.table(
-    name="bronze.nvd_cves_raw",
+    name="nvd_cves_raw",
     comment="Raw NVD CVE pages from the downloader; one row per API response page.",
     table_properties={
         "quality": "bronze",
@@ -115,10 +121,11 @@ def cves_exploded():
 # COMMAND ----------
 # DBTITLE 1,Silver — cves (one row per CVE, latest version wins)
 dlt.create_streaming_table(
-    name="silver.cves",
+    name="cves",
     comment=(
         "Normalized CVEs; one row per cve_id, latest version by modified_at. "
-        "Sourced from cves_exploded via apply_changes (SCD Type 1)."
+        "Sourced from cves_exploded via apply_changes (SCD Type 1). "
+        "Conceptually silver; physically lives in pipeline target schema (see header note)."
     ),
     table_properties={
         "quality": "silver",
@@ -127,7 +134,7 @@ dlt.create_streaming_table(
 )
 
 dlt.apply_changes(
-    target="silver.cves",
+    target="cves",
     source="cves_exploded",
     keys=["cve_id"],
     sequence_by=F.col("modified_at"),

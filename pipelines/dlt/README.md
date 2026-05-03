@@ -6,10 +6,14 @@ Bronze + Silver for the NVD CVE feed.
 
 ### What it produces
 
-| Table | Layer | Shape | Source |
+| Table | Conceptual layer | Shape | Source |
 |---|---|---|---|
-| `lakehouse_demo.bronze.nvd_cves_raw` | bronze | 1 row per API page | Auto Loader on `nvd_landing` volume |
-| `lakehouse_demo.silver.cves` | silver | 1 row per CVE (latest by `modified_at`) | `apply_changes` from exploded view |
+| `nvd_cves_raw` | bronze | 1 row per API page | Auto Loader on `nvd_landing` volume |
+| `cves` | silver | 1 row per CVE (latest by `modified_at`) | `apply_changes` from exploded view |
+
+Both tables publish to the pipeline's target schema. Layer is signaled by the
+table name and the `quality` table property. Splitting into two pipelines (one
+per schema) is the cleaner long-term shape; deferred to v2.
 
 ### Key design choices
 
