@@ -10,10 +10,19 @@ Bronze + Silver for the NVD CVE feed.
 |---|---|---|---|
 | `nvd_cves_raw` | bronze | 1 row per API page | Auto Loader on `nvd_landing` volume |
 | `cves` | silver | 1 row per CVE (latest by `modified_at`) | `apply_changes` from exploded view |
+| `cve_severity_daily` | gold | 1 row per (day, severity) | aggregation over `cves` |
+| `cve_recent_critical` | gold | 1 row per recent CRITICAL CVE | filter + projection over `cves` |
+| `cve_cwe_top` | gold | 1 row per CWE | aggregation over exploded `cwe_ids` |
 
 Both tables publish to the pipeline's target schema. Layer is signaled by the
 table name and the `quality` table property. Splitting into two pipelines (one
 per schema) is the cleaner long-term shape; deferred to v2.
+
+## `nvd_cves_gold.py`
+
+Materialized views built from silver for dashboard consumption. Uses `dlt.read`
+(batch) rather than `dlt.read_stream` because aggregations are full recomputes
+each pipeline run. See the notebook header for the rationale.
 
 ### Key design choices
 
